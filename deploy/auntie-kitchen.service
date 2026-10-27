@@ -1,0 +1,19 @@
+[Unit]
+Description=auntie-kitchen — recipe pages for the kitchen (Next.js :3200), push = deploy
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/srv/auntie-kitchen/app
+Environment=PORT=3200
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=AUNTIE_PUSH=1
+Environment=AUNTIE_VISION=http://<vision-host>:8085
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+StandardOutput=append:%h/.local/state/auntie/app.log
+StandardError=append:%h/.local/state/auntie/app.log
+
+[Install]
+WantedBy=default.target

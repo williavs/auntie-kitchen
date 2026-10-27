@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# post-receive: push = deploy. Pull the checkout; rebuild + restart only when something other than pantry.md changed.
+# The app itself pushes pantry.md edits here, so a pantry-only push must not restart the app serving that request.
+set -euo pipefail
+unset GIT_DIR GIT_WORK_TREE
+export PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin NEXT_TELEMETRY_DISABLED=1
+W=$HOME/srv/auntie-kitchen
+[ -d "$W/.git" ] || git clone -q "$HOME/git/auntie.git" "$W"
+git -C "$W" pull -q --ff-only
+CHANGED=""
+while read -r old new ref; do
+  CHANGED="$CHANGED $(git --git-dir="$HOME/git/auntie.git" diff --name-only "$old" "$new" 2>/dev/null | tr '\n' ' ')"
+done
+OTHER=$(echo "$CHANGED" | tr ' ' '\n' | grep -v '^pantry.md$' | grep -v '^$' || true)
+if [ -z "$OTHER" ]; then echo "pantry only — no rebuild"; exit 0; fi
+cd "$W/app"
+OLD=$(md5sum package-lock.json 2>/dev/null | cut -c1-32)
+NEW=$(git -C "$W" show HEAD:app/package-lock.json | md5sum | cut -c1-32)
+[ -d node_modules ] && [ "$OLD" = "$NEW" ] || npm ci --no-audit --no-fund 2>&1 | tail -1
+npx next build 2>&1 | grep -E "Compiled|Failed|rror|/r/" | head -20
+systemctl --user restart auntie-kitchen.service
+sleep 4; echo "deploy: $(git -C "$W" rev-parse --short HEAD) — $(systemctl --user is-active auntie-kitchen.service)"

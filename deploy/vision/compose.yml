@@ -1,0 +1,12 @@
+# auntie-vision: the vision model behind /haul, on ubuntu-homelab (the only always-on box with the RAM; raspdeck runs one model).
+# Tailnet only. Deploy: scp deploy/vision/compose.yml ubuntu-homelab:~/docker/auntie-vision/ && ssh ubuntu-homelab 'docker compose -f ~/docker/auntie-vision/compose.yml up -d'
+# Models live in ~/llm/models on homelab (GGUF + mmproj from unsloth). Bench 2026-10-21: see memory raspdeck-vision-model.
+services:
+  vision:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: auntie-vision
+    restart: unless-stopped
+    ports: ["<vision-host>:8085:8080"]
+    volumes: ["~/llm/models:/models:ro"]
+    command: -m /models/qwen35-9b.gguf --mmproj /models/qwen35-9b-mmproj.gguf -c 8192 -t 6 --reasoning-budget 0 --host 0.0.0.0 --port 8080
+    mem_limit: 12g
